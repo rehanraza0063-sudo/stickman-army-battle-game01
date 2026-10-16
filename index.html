@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Stickman Army Commander: Frontline War</title>
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <div id="game-container">
+    <!-- Main Render Canvas -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Crosshair Target Cursor for Airstrikes -->
+    <div id="airstrike-target-marker" class="hidden">
+      <div class="crosshair-ring"></div>
+      <div class="crosshair-label">AIRSTRIKE TARGET (CLICK TO STRIKE)</div>
+    </div>
+
+    <!-- ================= IN-GAME HUD ================= -->
+    <div id="hud" class="screen-layer hidden">
+      <!-- Top Tactical Bar -->
+      <header id="hud-top-bar">
+        <!-- Player HQ Status -->
+        <div class="hq-card player-hq">
+          <div class="hq-info">
+            <span class="hq-label"><span class="badge blue">BLUE</span> HQ</span>
+            <span id="player-hp-text" class="hq-val">1200 / 1200</span>
+          </div>
+          <div class="hp-bar-outer">
+            <div id="player-hp-bar" class="hp-bar-inner blue-fill" style="width: 100%;"></div>
+          </div>
+        </div>
+
+        <!-- Center Match Info -->
+        <div class="match-info-center">
+          <div id="hud-mission-title" class="mission-name">Operation First Strike</div>
+          <div class="hud-center-stats">
+            <span id="hud-timer">00:00</span>
+            <span class="stat-divider">|</span>
+            <span id="hud-wave-label" class="hidden">WAVE 1</span>
+          </div>
+        </div>
+
+        <!-- Enemy HQ Status -->
+        <div class="hq-card enemy-hq">
+          <div class="hq-info">
+            <span class="hq-label"><span class="badge red">RED</span> HQ</span>
+            <span id="enemy-hp-text" class="hq-val">1000 / 1000</span>
+          </div>
+          <div class="hp-bar-outer">
+            <div id="enemy-hp-bar" class="hp-bar-inner red-fill" style="width: 100%;"></div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Minimap Radar Container -->
+      <div id="minimap-wrapper">
+        <canvas id="minimapCanvas" width="320" height="42"></canvas>
+      </div>
+
+      <!-- Quick Action Controls (Top Right) -->
+      <div id="hud-top-actions">
+        <div class="resource-pill">
+          <span class="coin-icon">💰</span>
+          <span id="hud-gold-count" class="coin-value">150</span>
+          <span id="hud-gold-rate" class="coin-rate">(+10/s)</span>
+        </div>
+        <button id="btn-sound-toggle" class="icon-btn" title="Toggle Audio">🔊</button>
+        <button id="btn-pause" class="icon-btn" title="Pause Game (Space)">⏸️</button>
+      </div>
+
+      <!-- Commander Powers Bar (Left Side) -->
+      <div id="hud-commander-powers">
+        <div class="panel-tag">POWERS</div>
+        <button id="pwr-airstrike" class="power-btn" data-power="airstrike" title="Artillery Barrage [Q]">
+          <div class="power-cooldown-overlay"></div>
+          <span class="power-icon">💣</span>
+          <span class="power-name">Air Strike</span>
+          <span class="power-hotkey">[Q]</span>
+        </button>
+        <button id="pwr-rally" class="power-btn" data-power="rally" title="Rally Cry (+Speed & +Atk) [W]">
+          <div class="power-cooldown-overlay"></div>
+          <span class="power-icon">🎺</span>
+          <span class="power-name">Rally Cry</span>
+          <span class="power-hotkey">[W]</span>
+        </button>
+        <button id="pwr-reinforce" class="power-btn" data-power="reinforce" title="Air Drop Reinforcements [E]">
+          <div class="power-cooldown-overlay"></div>
+          <span class="power-icon">🪂</span>
+          <span class="power-name">Air Drop</span>
+          <span class="power-hotkey">[E]</span>
+        </button>
+        <button id="pwr-repair" class="power-btn" data-power="repair" title="HQ Overdrive & Repair [R]">
+          <div class="power-cooldown-overlay"></div>
+          <span class="power-icon">🛡️</span>
+          <span class="power-name">Overdrive</span>
+          <span class="power-hotkey">[R]</span>
+        </button>
+      </div>
+
+      <!-- Tactical Stances Bar (Right Side) -->
+      <div id="hud-stances">
+        <div class="panel-tag">TACTICS</div>
+        <button class="stance-btn active" data-stance="attack" title="Charge: Push aggressively forward">
+          <span class="stance-icon">⚔️</span>
+          <span class="stance-name">ATTACK</span>
+        </button>
+        <button class="stance-btn" data-stance="defend" title="Defend: Hold mid-field defense line">
+          <span class="stance-icon">🛡️</span>
+          <span class="stance-name">DEFEND</span>
+        </button>
+        <button class="stance-btn" data-stance="hold" title="Hold: Stop in place and fire at will">
+          <span class="stance-icon">🛑</span>
+          <span class="stance-name">HOLD</span>
+        </button>
+        <button class="stance-btn" data-stance="retreat" title="Retreat: Fall back to HQ bunker cover">
+          <span class="stance-icon">🏃</span>
+          <span class="stance-name">RETREAT</span>
+        </button>
+      </div>
+
+      <!-- Bottom Recruitment Deck -->
+      <footer id="hud-recruitment-deck">
+        <div class="recruitment-scroll-container" id="unit-deck-container">
+          <!-- Dynamically populated unit cards (1-7) -->
+        </div>
+      </footer>
+
+      <!-- Mobile Screen Pan Buttons -->
+      <button id="btn-pan-left" class="mobile-pan-btn pan-left" title="Pan Left">◀</button>
+      <button id="btn-pan-right" class="mobile-pan-btn pan-right" title="Pan Right">▶</button>
+    </div>
+
+    <!-- ================= MAIN MENU SCREEN ================= -->
+    <div id="screen-menu" class="screen-layer">
+      <div class="menu-backdrop"></div>
+      <div class="menu-content">
+        <div class="menu-header">
+          <div class="military-insignia">🎖️ ⚔️ 🎖️</div>
+          <h1 class="game-title">STICKMAN ARMY COMMANDER</h1>
+          <h2 class="game-subtitle">2D FRONTLINE STRATEGY</h2>
+        </div>
+
+        <div class="top-coin-banner">
+          <span>War Chest:</span>
+          <span class="coin-icon">💰</span>
+          <strong id="menu-coin-count">400</strong>
+        </div>
+
+        <nav class="menu-nav">
+          <button id="btn-menu-campaign" class="btn btn-primary btn-large">
+            <span class="btn-icon">🎖️</span>
+            <div class="btn-text">
+              <span class="btn-title">CAMPAIGN MISSIONS</span>
+              <span class="btn-desc">10 progressively difficult combat operations</span>
+            </div>
+          </button>
+
+          <button id="btn-menu-endless" class="btn btn-secondary btn-large">
+            <span class="btn-icon">⚔️</span>
+            <div class="btn-text">
+              <span class="btn-title">ENDLESS SIEGE</span>
+              <span class="btn-desc">Defend your base against infinite escalating waves</span>
+            </div>
+          </button>
+
+          <button id="btn-menu-upgrades" class="btn btn-secondary btn-large">
+            <span class="btn-icon">⚙️</span>
+            <div class="btn-text">
+              <span class="btn-title">ARMORY & UPGRADES</span>
+              <span class="btn-desc">Upgrade HQ, weapons, armor, and recruit speed</span>
+            </div>
+          </button>
+
+          <div class="menu-nav-row">
+            <button id="btn-menu-instructions" class="btn btn-outline">📖 Instructions</button>
+            <button id="btn-menu-settings" class="btn btn-outline">🔧 Settings</button>
+          </div>
+        </nav>
+
+        <div class="menu-footer">
+          <span>Use [A/D] or Arrow keys to scroll • Mouse drag or minimap to navigate • Hotkeys [1-7] & [Q/W/E/R]</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= MISSION SELECT SCREEN ================= -->
+    <div id="screen-missions" class="screen-layer hidden">
+      <header class="sub-screen-header">
+        <button id="btn-missions-back" class="btn btn-back">⬅ Back to Menu</button>
+        <h2 class="sub-screen-title">CAMPAIGN OPERATIONS</h2>
+        <div class="sub-screen-coins">
+          <span>War Chest: 💰 <strong id="missions-coin-count">400</strong></span>
+        </div>
+      </header>
+
+      <div class="missions-scroll-area">
+        <div class="missions-grid" id="missions-container">
+          <!-- Populated dynamically with 10 missions -->
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= ARMORY / UPGRADES SCREEN ================= -->
+    <div id="screen-upgrades" class="screen-layer hidden">
+      <header class="sub-screen-header">
+        <button id="btn-upgrades-back" class="btn btn-back">⬅ Back to Menu</button>
+        <h2 class="sub-screen-title">ARMORY & BASE FORTIFICATIONS</h2>
+        <div class="sub-screen-coins">
+          <span>War Chest: 💰 <strong id="upgrades-coin-count">400</strong></span>
+        </div>
+      </header>
+
+      <div class="upgrades-scroll-area">
+        <div class="upgrades-grid" id="upgrades-container">
+          <!-- Populated dynamically with upgrades -->
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= PAUSE MODAL ================= -->
+    <div id="modal-pause" class="modal-layer hidden">
+      <div class="modal-card">
+        <h2 class="modal-title">TACTICAL PAUSE</h2>
+        <div class="modal-actions">
+          <button id="btn-pause-resume" class="btn btn-primary">▶ Resume Battle</button>
+          <button id="btn-pause-restart" class="btn btn-secondary">🔄 Restart Mission</button>
+          <button id="btn-pause-armory" class="btn btn-secondary">⚙️ Armory Upgrades</button>
+          <button id="btn-pause-quit" class="btn btn-outline">🚪 Exit to Menu</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= VICTORY MODAL ================= -->
+    <div id="modal-victory" class="modal-layer hidden">
+      <div class="modal-card victory-card">
+        <div class="modal-banner victory-banner">MISSION ACCOMPLISHED!</div>
+        <div class="stars-row" id="victory-stars">
+          <span class="star">★</span>
+          <span class="star">★</span>
+          <span class="star">★</span>
+        </div>
+        <div class="modal-stats" id="victory-stats">
+          <!-- Mission breakdown -->
+        </div>
+        <div class="modal-reward-banner">
+          <span>War Chest Bounty:</span>
+          <strong id="victory-reward-gold">+500 💰</strong>
+        </div>
+        <div class="modal-actions">
+          <button id="btn-victory-next" class="btn btn-primary">Next Operation ➡</button>
+          <button id="btn-victory-armory" class="btn btn-secondary">Visit Armory ⚙️</button>
+          <button id="btn-victory-menu" class="btn btn-outline">Campaign Map</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= DEFEAT MODAL ================= -->
+    <div id="modal-defeat" class="modal-layer hidden">
+      <div class="modal-card defeat-card">
+        <div class="modal-banner defeat-banner">HEADQUARTERS DESTROYED</div>
+        <p class="defeat-message">The enemy forces overran our defensive perimeter. Regroup, upgrade your troops in the armory, and strike back!</p>
+        <div class="modal-actions">
+          <button id="btn-defeat-retry" class="btn btn-primary">🔄 Retry Operation</button>
+          <button id="btn-defeat-armory" class="btn btn-secondary">⚙️ Upgrade in Armory</button>
+          <button id="btn-defeat-menu" class="btn btn-outline">Exit to Menu</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= INSTRUCTIONS MODAL ================= -->
+    <div id="modal-instructions" class="modal-layer hidden">
+      <div class="modal-card instructions-card">
+        <h2 class="modal-title">COMMANDER'S FIELD MANUAL</h2>
+        <div class="manual-content">
+          <section class="manual-sec">
+            <h3>🎮 Controls</h3>
+            <p><strong>Camera Scroll:</strong> [A / D] or [Arrow Left / Right], or drag the screen with mouse/touch, or click the top Minimap.</p>
+            <p><strong>Recruit Soldiers:</strong> Keys [1] to [7] or click the unit cards at the bottom.</p>
+            <p><strong>Commander Powers:</strong> [Q] Air Strike, [W] Rally Cry, [E] Air Drop, [R] HQ Overdrive.</p>
+            <p><strong>Pause:</strong> [Space] or pause button.</p>
+          </section>
+
+          <section class="manual-sec">
+            <h3>⚔️ Tactical Stances</h3>
+            <p><strong>Attack (Charge):</strong> Units push aggressively across the battlefield to destroy enemy troops and HQ.</p>
+            <p><strong>Defend:</strong> Units advance up to 40% of the battlefield and dig in with fortified firelines.</p>
+            <p><strong>Hold:</strong> Units stop moving immediately; ranged units fire at any hostiles entering range.</p>
+            <p><strong>Retreat:</strong> Units fall back under the safety of the base automated defense turret.</p>
+          </section>
+
+          <section class="manual-sec">
+            <h3>💂 Soldier Roles & Counters</h3>
+            <p><strong>Swordsman (50g):</strong> Fast shock melee frontline shield.</p>
+            <p><strong>Rifleman (85g):</strong> Versatile mid-range rifle infantry.</p>
+            <p><strong>Archer (110g):</strong> High-arc ballistic arrows hitting backline targets.</p>
+            <p><strong>Gunner (170g):</strong> Rapid-fire machine gunner suppressing crowds.</p>
+            <p><strong>Sniper (210g):</strong> Lethal long-range critical punches to heavily armored foes.</p>
+            <p><strong>Medic (140g):</strong> Nanite beam restoring health to wounded troops.</p>
+            <p><strong>Juggernaut (280g):</strong> Heavily armored riot barrier with explosive shotgun.</p>
+          </section>
+        </div>
+        <button id="btn-instructions-close" class="btn btn-primary">Understood, Commander!</button>
+      </div>
+    </div>
+
+    <!-- ================= SETTINGS MODAL ================= -->
+    <div id="modal-settings" class="modal-layer hidden">
+      <div class="modal-card settings-card">
+        <h2 class="modal-title">COMMAND SETTINGS</h2>
+        <div class="settings-form">
+          <div class="setting-row">
+            <label for="slider-sfx">Sound Effects Volume</label>
+            <input type="range" id="slider-sfx" min="0" max="1" step="0.05" value="0.8" />
+          </div>
+          <div class="setting-row">
+            <label for="slider-music">March Music Volume</label>
+            <input type="range" id="slider-music" min="0" max="1" step="0.05" value="0.5" />
+          </div>
+          <div class="setting-row checkbox-row">
+            <label for="check-shake">Screen Shake Effects</label>
+            <input type="checkbox" id="check-shake" checked />
+          </div>
+          <div class="setting-row">
+            <button id="btn-reset-save" class="btn btn-danger">⚠️ Reset Save Data</button>
+          </div>
+        </div>
+        <button id="btn-settings-close" class="btn btn-primary">Save & Close</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
